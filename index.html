@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>טיוטה לוואטסאפ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700&display=swap">
+<style>
+/* Layout: one column notepad, big writing area first, actions under it, safety-net history last */
+:root {
+  --bg: #f3f5f2;
+  --surface: #ffffff;
+  --fg: #1d2420;
+  --muted: #5d6a63;
+  --line: #d9dfda;
+  --accent: #1f7a4d;
+  --accent-fg: #ffffff;
+  --warn: #a8460f;
+  --soft: #e6efe9;
+  --wa: #25d366; --wa-fg: #05200f;
+  --wa2: #dff5e6; --wa2-fg: #14532d; --wa2-line: #9fd8b3;
+  --font: "Heebo", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121714; --surface: #1b221e; --fg: #e8eeea; --muted: #9aa8a0;
+    --line: #2d3832; --accent: #3fb77c; --accent-fg: #07150e; --warn: #f0a070; --soft: #22302a;
+  --wa: #25d366; --wa-fg: #05200f; --wa2: #1f3a2b; --wa2-fg: #b6ecc9; --wa2-line: #2f5a43;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121714; --surface: #1b221e; --fg: #e8eeea; --muted: #9aa8a0;
+  --line: #2d3832; --accent: #3fb77c; --accent-fg: #07150e; --warn: #f0a070; --soft: #22302a;
+  --wa: #25d366; --wa-fg: #05200f; --wa2: #1f3a2b; --wa2-fg: #b6ecc9; --wa2-line: #2f5a43;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg); font-family: var(--font); font-size: 16px; line-height: 1.5;
+  padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.wrap { max-width: 720px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+h1 { font-size: 1.35rem; font-weight: 700; margin: 0; text-wrap: balance; }
+.status { font-size: 0.85rem; color: var(--muted); min-height: 1.3em; }
+.status.ok::before { content: "● "; color: var(--accent); }
+textarea {
+  width: 100%; min-height: 46vh; resize: vertical; padding: 14px;
+  font: inherit; font-size: 1.05rem; line-height: 1.6; color: var(--fg);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+}
+textarea:focus-visible, input:focus-visible, button:focus-visible, a.btn:focus-visible, summary:focus-visible {
+  outline: 3px solid var(--accent); outline-offset: 2px;
+}
+.meta { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: 0.85rem; color: var(--muted); }
+.phone { display: flex; flex-direction: column; gap: 4px; }
+.phone label { font-size: 0.85rem; color: var(--muted); }
+.phone input {
+  width: 100%; max-width: 280px; padding: 10px 12px; font: inherit; color: var(--fg);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+}
+.actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  min-height: 48px; padding: 0 20px; font: inherit; font-weight: 500; text-decoration: none; cursor: pointer;
+  color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+}
+.btn.primary { flex: 1 1 200px; background: var(--wa); color: var(--wa-fg); border-color: var(--wa); font-weight: 700; }
+.btn[aria-disabled="true"] { opacity: 0.45; pointer-events: none; }
+.btn.danger.armed { color: var(--warn); border-color: var(--warn); }
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0 14px; }
+summary { cursor: pointer; padding: 14px 0; font-weight: 500; }
+.hint { font-size: 0.85rem; color: var(--muted); margin: 0 0 10px; }
+ul.hist { list-style: none; margin: 0; padding: 0 0 14px; display: flex; flex-direction: column; gap: 8px; }
+ul.hist li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--soft); border-radius: 8px; }
+.hist .txt { flex: 1; min-width: 0; }
+.hist .t { font-size: 0.8rem; color: var(--muted); }
+.hist .p { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hist .btn { min-height: 38px; padding: 0 14px; }
+.empty { color: var(--muted); padding-bottom: 14px; }
+.to { display: flex; flex-direction: column; gap: 6px; }
+.to label { font-size: 0.85rem; color: var(--muted); }
+select {
+  width: 100%; max-width: 280px; padding: 10px 12px; font: inherit; color: var(--fg);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+}
+select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.addrow { display: flex; gap: 8px; flex-wrap: wrap; padding-bottom: 14px; }
+.addrow input {
+  flex: 1 1 140px; min-width: 0; padding: 10px 12px; font: inherit; color: var(--fg);
+  background: var(--surface); border: 1px solid var(--line); border-radius: 8px;
+}
+.pickrow { padding-bottom: 10px; }
+.hist .t.ph { direction: ltr; text-align: right; }
+[hidden] { display: none !important; }
+.btn.wa { width: 100%; background: var(--wa2); color: var(--wa2-fg); border-color: var(--wa2-line); font-weight: 700; }
+.ver { margin: 4px 0 0; text-align: center; font-size: 0.75rem; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="טיוטה">
+<meta name="theme-color" content="#1f7a4d">
+</head>
+<body>
+<div class="wrap" dir="rtl">
+  <header>
+    <h1>טיוטה לוואטסאפ</h1>
+    <div class="status" id="status" aria-live="polite"></div>
+  </header>
+
+  <textarea id="draft" dir="auto" placeholder="כתוב כאן. הטקסט נשמר אוטומטית בכל הקשה." aria-label="טקסט ההודעה"></textarea>
+
+  <div class="meta"><span id="count">0 תווים</span><span>שמירה אוטומטית במכשיר הזה</span></div>
+
+  <div class="to">
+    <label for="contact">אל מי לשלוח (אם לא תבחר, וואטסאפ ישאל אותך)</label>
+    <select id="contact"></select>
+    <div class="phone" id="phoneRow" hidden>
+      <label for="phone">מספר טלפון</label>
+      <input id="phone" type="tel" inputmode="tel" dir="ltr" placeholder="050-1234567" autocomplete="off">
+    </div>
+  </div>
+
+  <div class="actions">
+    <a class="btn primary" id="send" href="https://wa.me/" target="_blank" rel="noopener noreferrer" aria-disabled="true">שלח לוואטסאפ</a>
+    <button class="btn" id="copy" type="button">העתק</button>
+    <button class="btn danger" id="clear" type="button">נקה</button>
+  </div>
+
+  <a class="btn wa" id="openwa" href="whatsapp://send">פתח את וואטסאפ (בלי הודעה)</a>
+
+  <details id="contactsBox">
+    <summary>אנשי קשר (<span id="cCount">0</span>)</summary>
+    <p class="hint">שמור כאן שם ומספר, ואז תבחר את השם ברשימה "אל מי לשלוח". הם נשמרים במכשיר הזה.</p>
+    <div class="pickrow"><button class="btn" id="pick" type="button" hidden>בחר מאנשי הקשר בטלפון</button></div>
+    <div class="addrow">
+      <input id="cName" type="text" placeholder="שם" autocomplete="off" aria-label="שם איש הקשר">
+      <input id="cPhone" type="tel" inputmode="tel" dir="ltr" placeholder="050-1234567" autocomplete="off" aria-label="מספר טלפון">
+      <button class="btn" id="cAdd" type="button">הוסף</button>
+    </div>
+    <ul class="hist" id="clist"></ul>
+  </details>
+
+  <details id="histBox">
+    <summary>גרסאות קודמות (<span id="histCount">0</span>)</summary>
+    <p class="hint">הדף שומר גרסה כל כמה שניות, וגם שומר מיד כשרוב הטקסט נמחק בבת אחת. אם הכל נעלם, שחזר מכאן.</p>
+    <ul class="hist" id="hist"></ul>
+  </details>
+  <p class="ver">גרסה 5</p>
+</div>
+
+<script>
+(function () {
+  var KEY = "wa-draft-v1", HKEY = "wa-draft-history-v1", PKEY = "wa-draft-phone-v1";
+  var CKEY = "wa-draft-contacts-v1", SKEY = "wa-draft-to-v1";
+  var MAX_HIST = 30, SNAP_EVERY_MS = 15000;
+
+  var ta = document.getElementById("draft");
+  var phoneEl = document.getElementById("phone");
+  var sendEl = document.getElementById("send");
+  var copyEl = document.getElementById("copy");
+  var clearEl = document.getElementById("clear");
+  var statusEl = document.getElementById("status");
+  var countEl = document.getElementById("count");
+  var histEl = document.getElementById("hist");
+  var histCountEl = document.getElementById("histCount");
+
+  function load(k, fallback) { try { var v = localStorage.getItem(k); return v === null ? fallback : v; } catch (e) { return fallback; } }
+  function save(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
+
+  var history = [];
+  try { history = JSON.parse(load(HKEY, "[]")) || []; } catch (e) { history = []; }
+  var prevValue = "", lastSnapText = history.length ? history[0].t : "";
+  var saveTimer = null, armedTimer = null;
+
+  function setStatus(text, ok) { statusEl.textContent = text; statusEl.className = "status" + (ok ? " ok" : ""); }
+
+  function normalizePhone(raw) {
+    var d = (raw || "").replace(/\D/g, "");
+    if (!d) return "";
+    if (d.indexOf("00") === 0) d = d.slice(2);
+    if (d.charAt(0) === "0") d = "972" + d.slice(1);
+    return d;
+  }
+
+  function updateLink() {
+    var text = ta.value;
+    var num = currentNumber();
+    sendEl.href = "https://wa.me/" + num + "?text=" + encodeURIComponent(text);
+    sendEl.setAttribute("aria-disabled", text.trim() ? "false" : "true");
+    var n = text.length;
+    countEl.textContent = n + " תווים";
+  }
+
+  function snapshot(text) {
+    if (!text || !text.trim() || text === lastSnapText) return;
+    lastSnapText = text;
+    history = history.filter(function (h) { return h.t !== text; });
+    history.unshift({ t: text, ts: Date.now() });
+    if (history.length > MAX_HIST) history.length = MAX_HIST;
+    save(HKEY, JSON.stringify(history));
+    renderHistory();
+  }
+
+  function fmtTime(ts) {
+    var d = new Date(ts), now = new Date();
+    var time = d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+    if (d.toDateString() === now.toDateString()) return "היום " + time;
+    return d.toLocaleDateString("he-IL", { day: "numeric", month: "numeric" }) + " " + time;
+  }
+
+  function renderHistory() {
+    histEl.textContent = "";
+    histCountEl.textContent = history.length;
+    if (!history.length) {
+      var e = document.createElement("li");
+      e.className = "empty";
+      e.textContent = "עדיין אין גרסאות שמורות.";
+      histEl.appendChild(e);
+      return;
+    }
+    history.forEach(function (h) {
+      var li = document.createElement("li");
+      var box = document.createElement("div"); box.className = "txt";
+      var t = document.createElement("div"); t.className = "t"; t.textContent = fmtTime(h.ts) + " · " + h.t.length + " תווים";
+      var p = document.createElement("div"); p.className = "p"; p.setAttribute("dir", "auto"); p.textContent = h.t.replace(/\s+/g, " ").slice(0, 80);
+      box.appendChild(t); box.appendChild(p);
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "btn"; b.textContent = "שחזר";
+      b.addEventListener("click", function () {
+        snapshot(ta.value);
+        ta.value = h.t; prevValue = h.t;
+        save(KEY, h.t); updateLink(); setStatus("שוחזר", true); ta.focus();
+      });
+      li.appendChild(box); li.appendChild(b);
+      histEl.appendChild(li);
+    });
+  }
+
+  function onInput() {
+    var cur = ta.value;
+    // sudden wipe: most of a longer text vanished at once, keep the previous text
+    if (prevValue.length > 30 && cur.length < prevValue.length * 0.2) snapshot(prevValue);
+    prevValue = cur;
+    updateLink();
+    setStatus("שומר...", false);
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () {
+      var ok = save(KEY, ta.value);
+      setStatus(ok ? "נשמר" : "השמירה במכשיר לא זמינה, העתק את הטקסט", ok);
+    }, 250);
+  }
+
+  var selEl = document.getElementById("contact"), phoneRow = document.getElementById("phoneRow");
+  var cListEl = document.getElementById("clist"), cCountEl = document.getElementById("cCount");
+  var cName = document.getElementById("cName"), cPhone = document.getElementById("cPhone");
+  var cAdd = document.getElementById("cAdd"), pickBtn = document.getElementById("pick");
+  var contacts = [];
+
+  function currentNumber() {
+    var v = selEl.value;
+    if (v === "__other") return normalizePhone(phoneEl.value);
+    if (!v) return "";
+    for (var i = 0; i < contacts.length; i++) if (contacts[i].id === v) return normalizePhone(contacts[i].phone);
+    return "";
+  }
+
+  function saveContacts() { save(CKEY, JSON.stringify(contacts)); }
+
+  function renderContacts() {
+    var keep = selEl.value;
+    selEl.textContent = "";
+    function opt(v, t) { var o = document.createElement("option"); o.value = v; o.textContent = t; selEl.appendChild(o); }
+    opt("", "אבחר בוואטסאפ");
+    contacts.forEach(function (c) { opt(c.id, c.name); });
+    opt("__other", "מספר אחר...");
+    selEl.value = keep;
+    if (selEl.value !== keep) selEl.value = "";
+    phoneRow.hidden = selEl.value !== "__other";
+    cCountEl.textContent = contacts.length;
+
+    cListEl.textContent = "";
+    if (!contacts.length) {
+      var e = document.createElement("li"); e.className = "empty"; e.textContent = "עדיין אין אנשי קשר שמורים.";
+      cListEl.appendChild(e);
+      return;
+    }
+    contacts.forEach(function (c) {
+      var li = document.createElement("li");
+      var box = document.createElement("div"); box.className = "txt";
+      var n = document.createElement("div"); n.className = "p"; n.setAttribute("dir", "auto"); n.textContent = c.name;
+      var ph = document.createElement("div"); ph.className = "t ph"; ph.textContent = c.phone;
+      box.appendChild(n); box.appendChild(ph);
+      var b = document.createElement("button"); b.type = "button"; b.className = "btn danger"; b.textContent = "מחק";
+      var t = null;
+      b.addEventListener("click", function () {
+        if (b.classList.contains("armed")) {
+          clearTimeout(t);
+          contacts = contacts.filter(function (x) { return x.id !== c.id; });
+          saveContacts();
+          if (selEl.value === c.id) { selEl.value = ""; save(SKEY, ""); }
+          renderContacts(); updateLink();
+        } else {
+          b.classList.add("armed"); b.textContent = "בטוח?";
+          t = setTimeout(function () { b.classList.remove("armed"); b.textContent = "מחק"; }, 3000);
+        }
+      });
+      li.appendChild(box); li.appendChild(b);
+      cListEl.appendChild(li);
+    });
+  }
+
+  function addContact(name, phone) {
+    name = (name || "").trim();
+    var norm = normalizePhone(phone);
+    if (!norm) return null;
+    if (!name) name = phone;
+    var found = null;
+    contacts.forEach(function (c) { if (normalizePhone(c.phone) === norm) found = c; });
+    if (found) { found.name = name; }
+    else {
+      found = { id: String(Date.now()) + Math.random().toString(36).slice(2, 6), name: name, phone: phone.trim() };
+      contacts.push(found);
+    }
+    contacts.sort(function (a, b) { return a.name.localeCompare(b.name, "he"); });
+    saveContacts();
+    return found;
+  }
+
+  function loadContacts() {
+    try { contacts = JSON.parse(load(CKEY, "[]")) || []; } catch (e) { contacts = []; }
+    renderContacts();
+    selEl.value = load(SKEY, "");
+    if (selEl.value !== load(SKEY, "")) selEl.value = "";
+    phoneRow.hidden = selEl.value !== "__other";
+  }
+
+  selEl.addEventListener("change", function () {
+    phoneRow.hidden = selEl.value !== "__other";
+    save(SKEY, selEl.value);
+    updateLink();
+    if (selEl.value === "__other") phoneEl.focus();
+  });
+
+  cAdd.addEventListener("click", function () {
+    var c = addContact(cName.value, cPhone.value);
+    if (!c) { setStatus("הכנס מספר טלפון תקין", false); cPhone.focus(); return; }
+    cName.value = ""; cPhone.value = "";
+    renderContacts();
+    selEl.value = c.id; save(SKEY, c.id); phoneRow.hidden = true;
+    updateLink();
+    setStatus("נוסף: " + c.name, true);
+  });
+
+  if ("contacts" in navigator && "ContactsManager" in window) {
+    pickBtn.hidden = false;
+    pickBtn.addEventListener("click", function () {
+      navigator.contacts.select(["name", "tel"], { multiple: true }).then(function (res) {
+        var last = null;
+        res.forEach(function (r) {
+          var nm = (r.name && r.name[0]) || "", tel = (r.tel && r.tel[0]) || "";
+          if (tel) last = addContact(nm, tel) || last;
+        });
+        renderContacts();
+        if (last) { selEl.value = last.id; save(SKEY, last.id); phoneRow.hidden = true; updateLink(); setStatus("נוספו אנשי קשר", true); }
+      }).catch(function () { setStatus("לא הצלחתי לפתוח את אנשי הקשר", false); });
+    });
+  }
+
+  ta.addEventListener("input", onInput);
+  phoneEl.addEventListener("input", function () { save(PKEY, phoneEl.value); updateLink(); });
+
+  sendEl.addEventListener("click", function (ev) {
+    if (!ta.value.trim()) { ev.preventDefault(); return; }
+    save(KEY, ta.value); snapshot(ta.value); updateLink();
+  });
+
+  copyEl.addEventListener("click", function () {
+    function fallback() {
+      ta.focus(); ta.select();
+      var ok = false;
+      try { ok = document.execCommand("copy"); } catch (e) {}
+      setStatus(ok ? "הועתק" : "סימנתי את הטקסט, העתק ידנית", ok);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(ta.value).then(function () { setStatus("הועתק", true); }, fallback);
+    } else { fallback(); }
+  });
+
+  clearEl.addEventListener("click", function () {
+    if (!ta.value) return;
+    if (clearEl.classList.contains("armed")) {
+      clearTimeout(armedTimer);
+      snapshot(ta.value);
+      ta.value = ""; prevValue = ""; save(KEY, ""); updateLink();
+      clearEl.classList.remove("armed"); clearEl.textContent = "נקה";
+      setStatus("נוקה. הגרסה הקודמת שמורה בגרסאות קודמות", true);
+      ta.focus();
+    } else {
+      clearEl.classList.add("armed"); clearEl.textContent = "לחץ שוב לניקוי";
+      armedTimer = setTimeout(function () { clearEl.classList.remove("armed"); clearEl.textContent = "נקה"; }, 3000);
+    }
+  });
+
+  document.getElementById("openwa").addEventListener("click", function () {
+    save(KEY, ta.value); snapshot(ta.value);
+    setTimeout(function () {
+      if (!document.hidden) setStatus("וואטסאפ לא נפתח. פתח את הדף ישירות מכרום או מהאייקון במסך הבית", false);
+    }, 1500);
+  });
+
+  setInterval(function () { snapshot(ta.value); }, SNAP_EVERY_MS);
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) { save(KEY, ta.value); snapshot(ta.value); }
+  });
+  window.addEventListener("pagehide", function () { save(KEY, ta.value); snapshot(ta.value); });
+
+  ta.value = load(KEY, "");
+  prevValue = ta.value;
+  phoneEl.value = load(PKEY, "");
+  loadContacts();
+  updateLink();
+  renderHistory();
+  if (ta.value) setStatus("שוחזר מהשמירה האחרונה", true);
+})();
+</script>
+
+</body>
+</html>
