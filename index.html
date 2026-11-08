@@ -68,7 +68,7 @@ textarea:focus-visible, input:focus-visible, button:focus-visible, a.btn:focus-v
   min-height: 48px; padding: 0 20px; font: inherit; font-weight: 500; text-decoration: none; cursor: pointer;
   color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
 }
-.btn.primary { flex: 1 1 200px; background: var(--wa); color: var(--wa-fg); border-color: var(--wa); font-weight: 700; }
+.btn.primary { flex: 1 1 200px; background: var(--wa2); color: var(--wa2-fg); border-color: var(--wa2-line); font-weight: 700; }
 .btn[aria-disabled="true"] { opacity: 0.45; pointer-events: none; }
 .btn.danger.armed { color: var(--warn); border-color: var(--warn); }
 details { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 0 14px; }
@@ -96,7 +96,7 @@ select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
 .pickrow { padding-bottom: 10px; }
 .hist .t.ph { direction: ltr; text-align: right; }
 [hidden] { display: none !important; }
-.btn.wa { width: 100%; background: var(--wa2); color: var(--wa2-fg); border-color: var(--wa2-line); font-weight: 700; }
+.btn.wa { width: 100%; background: var(--wa); color: var(--wa-fg); border-color: var(--wa); font-weight: 700; }
 .ver { margin: 4px 0 0; text-align: center; font-size: 0.75rem; color: var(--muted); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
@@ -127,12 +127,12 @@ select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   </div>
 
   <div class="actions">
-    <a class="btn primary" id="send" href="https://wa.me/" target="_blank" rel="noopener noreferrer" aria-disabled="true">שלח לוואטסאפ</a>
+    <a class="btn primary" id="send" href="https://wa.me/" aria-disabled="true">שליחת טקסט לוואטסאפ</a>
     <button class="btn" id="copy" type="button">העתק</button>
     <button class="btn danger" id="clear" type="button">נקה</button>
   </div>
 
-  <a class="btn wa" id="openwa" href="whatsapp://send">פתח את וואטסאפ (בלי הודעה)</a>
+  <a class="btn wa" id="openwa" href="https://api.whatsapp.com/send?text=%20">לוואטסאפ</a>
 
   <details id="contactsBox">
     <summary>אנשי קשר (<span id="cCount">0</span>)</summary>
@@ -151,7 +151,7 @@ select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
     <p class="hint">הדף שומר גרסה כל כמה שניות, וגם שומר מיד כשרוב הטקסט נמחק בבת אחת. אם הכל נעלם, שחזר מכאן.</p>
     <ul class="hist" id="hist"></ul>
   </details>
-  <p class="ver">גרסה 5</p>
+  <p class="ver">גרסה 12</p>
 </div>
 
 <script>
@@ -173,6 +173,10 @@ select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   function load(k, fallback) { try { var v = localStorage.getItem(k); return v === null ? fallback : v; } catch (e) { return fallback; } }
   function save(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } }
 
+  function quickCopy(t) {
+    try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).catch(function () {}); } catch (e) {}
+  }
+
   var history = [];
   try { history = JSON.parse(load(HKEY, "[]")) || []; } catch (e) { history = []; }
   var prevValue = "", lastSnapText = history.length ? history[0].t : "";
@@ -191,7 +195,8 @@ select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   function updateLink() {
     var text = ta.value;
     var num = currentNumber();
-    sendEl.href = "https://wa.me/" + num + "?text=" + encodeURIComponent(text);
+    var enc = encodeURIComponent(text);
+    sendEl.href = "https://api.whatsapp.com/send?" + (num ? "phone=" + num + "&" : "") + "text=" + enc;
     sendEl.setAttribute("aria-disabled", text.trim() ? "false" : "true");
     var n = text.length;
     countEl.textContent = n + " תווים";
@@ -378,7 +383,10 @@ select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
   sendEl.addEventListener("click", function (ev) {
     if (!ta.value.trim()) { ev.preventDefault(); return; }
     save(KEY, ta.value); snapshot(ta.value); updateLink();
+    quickCopy(ta.value);
   });
+
+
 
   copyEl.addEventListener("click", function () {
     function fallback() {
@@ -405,13 +413,6 @@ select:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
       clearEl.classList.add("armed"); clearEl.textContent = "לחץ שוב לניקוי";
       armedTimer = setTimeout(function () { clearEl.classList.remove("armed"); clearEl.textContent = "נקה"; }, 3000);
     }
-  });
-
-  document.getElementById("openwa").addEventListener("click", function () {
-    save(KEY, ta.value); snapshot(ta.value);
-    setTimeout(function () {
-      if (!document.hidden) setStatus("וואטסאפ לא נפתח. פתח את הדף ישירות מכרום או מהאייקון במסך הבית", false);
-    }, 1500);
   });
 
   setInterval(function () { snapshot(ta.value); }, SNAP_EVERY_MS);
